@@ -1,0 +1,358 @@
+# python2
+# HW6
+# Authors:  <Nan Wang>
+calendar = ''
+#--------------------------------------------------------------
+
+class Calendar(object):
+    """Keeps track of dates"""
+
+    def __init__(self):
+        """Creates the start date."""
+        self.date = 0
+
+
+    def get_date(self):
+        """Returns (as an integer) the current date."""
+        return self.date
+
+
+    def advance(self):
+        """Increment the date (move ahead to the next day), and returns the new date."""
+        self.date += 1
+        return self.date
+
+#--------------------------------------------------------------
+
+class Book(object):
+    """A book has these attributes (instance variables):
+       id, title, author (only one author per book), and due_date.
+       The due date is None if the book is not checked out."""
+
+    def __init__(self, id, title, author):
+        self.id = id
+        self.title = title
+        self.author = author
+        
+        """The constructor.Saves the provided information.
+        When created, the book is not checked out."""
+
+    def get_id(self):
+        return self.id
+        """Returns this book's unique identification number."""
+        
+    def get_title(self):
+        return self.title
+        """Returns this book's title."""
+
+    def get_author(self):
+        """Returns this book's author."""
+        return self.author
+
+    def get_due_date(self):
+        """Returns the date (as an integer) that this book is due."""
+        return self.due_date
+
+    def check_out(self, due_date):
+        """Sets the due date of this Book. Doesn't return anything."""
+        self.due_date = due_date
+
+    def check_in(self):
+        """Sets the due date of this Book to None. Doesn't return anything."""
+        self.due_date = None
+
+    def __str__(self):
+        """Returns a string of the form "id: title, by author"."""
+        return str(self.id) + ': ' + self.title + ', by '+self.author
+
+
+#--------------------------------------------------------------
+
+class Patron(object):
+    """A patron is a "customer" of the library.
+       A patron must have a library card in order to check out books.
+       A patron with a card may have no more than three books checked out at any time."""
+
+    def __init__(self, name, library):
+        """Constructs a patron with the given name, and no books."""
+        self.name = name
+        self.books = set([])
+        self.library = library
+
+    def get_name(self):
+        """Returns this patron's name."""
+        return self.name
+
+    def check_out(self, book):
+        """Adds this Book object to the set of books checked out by this patron."""
+        self.books.add(book)
+
+    def give_back(self, book):
+        """Removes this Book object from the set of books checked out by this patron."""
+        self.books.remove(book)
+
+    def get_books(self):
+        """Returns the set of Book objects checked out to this patron """
+        return self.books
+        
+    def get_overdue_books(self):
+        """Returns the set of overdue Book objects checked out to this patron"""
+        self.overdue_books = set([])
+        for elem in self.books:
+            if elem.get_due_date() < calendar.get_date():
+                self.overdue_books.add(elem)
+        return self.overdue_books
+
+
+#--------------------------------------------------------------
+
+class Library(object):
+    """construct methods for the librarian."""
+    
+    def __init__(self):
+        """Constructs the Library object."""
+        
+        # Create a global calendar, to be used by many classes
+        global calendar
+        calendar = Calendar()
+        
+        # Initialize some instance variables for _this_ library
+        self.is_open = False        
+        self.collection = {}    
+        self.patrons = {}           
+        self.patron_being_served = None 
+        self.booklist = []
+        
+        # Read in the book collection
+        stream = open('collection.txt',encoding='utf-8')
+        i = 1
+        for line in stream:
+            line=line.strip()
+            if line == '[':
+                pass
+            elif len(line)>1:
+                line = line[:-1]
+                tuple = eval(line)
+                self.booklist.append(Book(i,str(tuple[0]),str(tuple[1])))
+                i += 1
+        stream.close()
+
+        for elem in self.booklist:
+           self.collection[elem.get_id()]= elem
+
+    def open(self):
+        """Opens this library for business at the start of a new day."""
+        if self.is_open :
+            raise Exception("The library is already open!")
+        else:
+            calendar.advance()
+            self.is_open = True
+            return 'Today is day '+ str(calendar.get_date())+'.'
+        pass
+
+    def find_all_overdue_books(self):
+        overdue = False
+        my_list = []
+        for patron_name in self.patrons:
+            book_set = self.patrons[patron_name].get_books()
+            for book in book_set:
+                if book.get_due_date() < calendar.get_date():
+                     overdue = True
+                     break
+            if overdue:
+                 overdue_set = self.patrons[patron_name].get_overdue_books()
+                 my_list.append('Dear ' + self.patrons[patron_name].name+' You have following overdue books:\n'+'\n'.join([str(book) for book in overdue_set]))
+        if overdue == False:
+            return 'No books are overdue.'
+        else:
+            return '\n'.join(my_list)
+                 
+    def issue_card(self, name_of_patron):
+        """issued a card to a new person."""
+        if self.is_open:
+            if name_of_patron in self.patrons:
+                return name_of_patron +' already has a library card.'
+            else:
+                self.patrons[name_of_patron]=Patron(name_of_patron,self)
+                return 'Library card issued to ' + name_of_patron+'.'
+        else: raise Exception('The library is not open.')
+                
+                
+
+    def serve(self, name_of_patron):
+        """Saves the given patron in an instance variable to be used by checkin,checkout and renew methods."""
+        if self.is_open:
+            if name_of_patron in self.patrons:
+                self.patron_being_served = self.patrons[name_of_patron]
+                return "Now serving " + name_of_patron+ '.'
+            else:
+                self.patron_being_served = None
+                return name_of_patron + ' does not have a library card.'
+        else: raise Exception("The library is not open.")
+
+    def find_overdue_books(self):
+        if self.is_open:
+            if self.patron_being_served:
+                if self.patron_being_served.get_overdue_books():
+                    return '\n'.join([str(books) for books in self.patron_being_served.get_overdue_books()])
+                else: return None
+            else: raise Exception('No patron is currently being served.')
+        else: raise Exception('The library is not open.')
+                
+            
+    def check_in(self, *book_ids):
+        """Accepts books being returned by the current patron,
+           and add them to the available booklist"."""
+        if self.is_open and self.patron_being_served:
+            for id in book_ids:
+                if id not in[book.get_id() for book in self.patron_being_served.get_books()]:
+                    raise Exception('The patron does not have book' + str(id)+' .')
+            for id in book_ids:
+                self.booklist.append(self.collection[id])
+                self.patron_being_served.give_back(self.collection[id])
+                self.collection[id].check_in()
+            return self.patron_being_served.get_name()+' has returned '+str(len(book_ids))+' books.'
+        elif not self.patron_being_served :
+            raise Exception('No patron is currently being served.')
+        else:
+            raise Exception('The library is not open.')
+        
+                
+                 
+
+    def search(self, string):
+        """Finds those Books whose title or author (or both) contains this string.
+           The strin must contains at least 4 characters."""
+        self.find_book = []
+        if len(string) >=4:
+            for book in self.booklist:
+                if string.lower() in book.get_title().lower() or string.lower() in book.get_author().lower():
+                    self.find_book.append(book)
+            if not self.find_book:
+                return 'No books found.'
+            return  str(self.find_book[0])
+        else:
+            return "Search string must contain at least four characters."
+        
+
+    def check_out(self, *book_ids):
+        """Checks books out to the current patron.
+           Books will be due seven days after the current date.
+           Patron must have a library card, and may have not more
+           than three books checked out at a time."""
+        if not self.is_open:
+            raise Exception('The library is not open.')
+        elif not self.patron_being_served:
+            raise Exception('No patron is currently being served.')
+        else:
+            for id in book_ids:
+                if id not in [book.get_id() for book in self.booklist]:
+                    raise Exception('The library does not have book ' + str(id) +'.')
+        if len(self.patron_being_served.get_books())+ len(book_ids) >3:
+                raise Exception('Patron cannot have more than three books.')
+        for id in book_ids:
+                self.booklist.remove(self.collection[id])
+                self.patron_being_served.check_out(self.collection[id])
+                self.collection[id].check_out(calendar.get_date()+7)
+        return str(len(book_ids)) +' books have been checked out to '+ self.patron_being_served.get_name()+'.'
+
+    def renew(self, *book_ids):
+        if not self.is_open :
+            raise Exception('The library is not open.')
+        elif not self.patron_being_served:
+            raise Exception('No patron is currently being served.')
+        else:
+            for id in book_ids:
+                if id not in [book.get_id() for book in self.patron_being_served.get_books()]:
+                    raise Exception('The patron does not have book' + str(id)+'.')
+            for id in book_ids:
+                self.collection[id].check_out(calendar.get_date()+7)
+            return str(len(book_ids)) +' books have been renewed for '+ self.patron_being_served.get_name()+'.'
+        
+    
+    def close(self):
+        """Closes the library for the day."""
+        if self.is_open:
+            self.is_open = False
+            self.patron_being_served = None
+            return 'Good night.'
+        else:
+            raise Exception('The library is not open.')
+
+    def quit(self):
+        return 'The library is now closed for renovations.'
+
+def commands():
+        print("""
+open
+     Opens the library.
+     
+overdue
+     Print a list of overdue books.
+     
+card Person's name
+     Issues a library card to the named person (Creates a Patron.) The person's name may contain spaces.
+     
+serve Person's name
+     Makes a note of which Patron we are serving. (Calls serve.) Also lists the id, title, and author of all books currently checked out to the Patron, and indicates which are overdue.
+
+checkin id numbers
+     Returns books to the library.
+
+checkout id numbers
+     Gives books to the patron currently being served. These books cannot be given to any other patron until this patron returns them.
+
+renew id numbers
+     Extends the period of time that the patron currently being served can keep the books.
+
+search string
+     Searches for books containing the given string. You can assume that the string does not contain spaces.
+
+close
+     Closes the library for the day.
+
+quit
+     Closes the library permanently and quits the program.""")
+
+#--------------------------------------------------------------
+
+def main():
+    library = Library()
+    commands()
+    command = ''
+    while True:
+        command = input('>>>')
+        command = command.split()
+        try:
+            book_ids = [int(elem) for elem in command[1:] if elem.isdigit()]
+            if command[0] == 'open':print(library.open())
+            elif command[0] == 'overdue':print(library.find_all_overdue_books())
+            elif  command[0] == 'card':print(library.issue_card(''.join(command[1:])))
+            elif command[0] =='serve':
+                print(library.serve(''.join(command[1:])))
+                if library.patron_being_served != None:
+                    print('You have following books checkedout:')
+                    print('\n'.join([str(book) for book in library.patron_being_served.get_books()]))
+                    print('You have following overdue books:')
+                    print(library.find_overdue_books())
+            elif command[0] == 'checkin':
+                print(library.check_in(*book_ids))
+            elif command[0] =='checkout':
+                print(library.check_out(*book_ids))
+            elif command[0] == 'renew':
+                print(library.renew(*book_ids))
+            elif command[0] == 'search':
+                print(library.search(str(command[1])))
+            elif command[0] == 'close':
+                print(library.close())
+            elif command[0] == 'quit':
+                print(library.quit())
+                break
+            else:
+                print('You should enter valid command.')
+        except Exception as msg:
+            print(msg)
+                
+    
+if __name__ == '__main__':
+    main()
