@@ -1,0 +1,145 @@
+# python2
+### HW6 Nan Wang
+import unittest
+from library import*
+
+
+class CalendarTest(unittest.TestCase):
+
+    def test_calendar(self):
+        calendar = Calendar()
+        self.assertEqual(calendar.get_date(), 0)
+        calendar.advance()
+        self.assertEqual(calendar.advance(), 2)
+        self.assertEqual(calendar.advance(), 3)
+        calendar.advance()
+        self.assertEqual(calendar.advance(), 5)
+        self.assertEqual(calendar.get_date(), 5)
+
+class BookTest(unittest.TestCase):
+
+    def setUp(self):
+        global book
+        book = Book(5,"A Bend in the River", "V. S. Naipaul")
+        self.assertTrue(type(book) is Book)
+
+    def test_get_id(self):
+        self.assertEqual(book.get_id(), 5)
+
+    def test_get_title(self):
+        self.assertEqual(book.get_title(), "A Bend in the River")
+
+    def test_get_author(self):
+        self.assertEqual(book.get_author(), "V. S. Naipaul")
+
+    def test_get_due_date(self):
+        self.assertEqual(book.get_due_date(), None)
+
+    def test_check_out(self):
+        book.check_out(12)
+        self.assertEqual(book.get_due_date(), 12)
+
+    def test_check_in(self):
+        book.check_in()
+        self.assertEqual(book.get_due_date(), None)
+
+    def test__str__(self):
+        self.assertEqual(str(book), '5: A Bend in the River, by V. S. Naipaul')
+
+class PatronTest(unittest.TestCase):
+
+    def test_Patron(self):
+     library = Library()
+     patron = Patron('Nan Wang', library)
+     book = Book(5,"A Bend in the River", "V. S. Naipaul")
+     self.assertEqual(patron.get_name(), 'Nan Wang')
+     self.assertEqual(patron.library, library)
+     patron.check_out(book)
+     self.assertEqual(patron.get_books(), {book})
+     patron.give_back(book)
+     self.assertEqual(patron.get_books(), set([]))
+
+class LibraryTest(unittest.TestCase):
+
+    def setUp(self):
+      global library
+      library = Library()
+      library.open()
+
+    def test_open(self):
+        self.assertRaises(Exception, library.open)
+
+    def test_find_all_overdue_books(self):
+        self.assertEqual(library.patron_being_served, None)
+
+    def test_issue_card(self):
+        library.close()
+        self.assertRaises(Exception, library.issue_card, 'keke')
+        library.open()
+        self.assertTrue('issued' in library.issue_card('keke'))
+        self.assertTrue('already' in library.issue_card('keke'))
+
+    def test_serve(self):
+        library.close()
+        self.assertRaises(Exception, library.serve, 'keke')
+        library.open()
+        library.issue_card('keke')
+        self.assertTrue('does not have a library card.' in library.serve('Nan'))
+        self.assertTrue('Now serving' in library.serve('keke'))
+
+    def test_find_over_due_books(self):
+        library.issue_card('keke')
+        library.serve('keke')
+        library.check_out(*[9, 2, 6])
+        for i in range(8):
+            library.close()
+            library.open()
+        library.serve('keke')
+        self.assertTrue('9' in library.find_overdue_books() and '2' in library.find_overdue_books()and '6' in library.find_overdue_books())
+        
+    def test_check_in(self):
+        library.close()
+        self.assertRaises(Exception, library.check_in, *[9, 2, 6])
+        library.open()
+        library.issue_card('keke')
+        self.assertRaises(Exception, library.check_in, *[9, 2, 6])
+        library.serve('keke')
+        library.check_out(*[9, 2, 6])
+        self.assertRaises(Exception, library.check_in,*[1, 2, 6])
+        self.assertTrue('has returned 2' in library.check_in(*[9, 2]))
+
+    def test_search(self):
+        self.assertTrue('No books found.',library.search('2000'))
+        self.assertTrue("Search string must contain at least four characters.",library.search('200'))
+        self.assertTrue('5: A Bend in the River, by V. S. Naipaul',library.search('bend'))
+        
+    def test_check_out(self):
+        library.close()
+        self.assertRaises(Exception, library.check_out, *[9, 2, 6])
+        library.open()
+        library.issue_card('keke')
+        self.assertRaises(Exception, library.check_out, *[9, 2, 6])
+        library.serve('keke')
+        self.assertRaises(Exception, library.check_out, *[1066, 2, 6])
+        self.assertRaises(Exception, library.check_out, *[9, 2, 6, 4])
+        self.assertTrue('3 books have been checked out to keke.',library.check_out(*[9, 2, 6]))
+
+    def test_renew(self):
+        library.close()
+        self.assertRaises(Exception, library.renew, *[9, 2, 6])
+        library.open()
+        library.issue_card('keke')
+        self.assertRaises(Exception, library.renew, *[9, 2, 6])
+        library.serve('keke')
+        library.check_out(*[9, 2, 6])
+        self.assertRaises(Exception, library.renew, *[1066, 2, 6])
+        self.assertTrue('2 books have been renewed for keke.',library.renew(*[9, 2]))
+
+    def test_close(self):
+        self.assertEqual('Good night.', library.close())
+        self.assertRaises(Exception, library.close)
+
+    def test_quit(self):
+        self.assertEqual('The library is now closed for renovations.',library.quit())
+        
+unittest.main()
